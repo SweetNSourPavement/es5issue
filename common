@@ -1,0 +1,112 @@
+#!/bin/bash
+PIDS=""
+PORT="123"
+STATUS="black"
+
+function createfirst {
+	tar xf ${TAR}
+	DIR="$(find . -maxdepth 1 -type d|grep -v -E '^\.(|/\..*)$')"
+	mv ${DIR} 1
+}
+
+function createindex {
+	echo create index
+	CURLRESULT=$(curl -s -XPUT "http://localhost:${PORT}/foobar/" -d '{
+		"settings" : {
+			"index" : {
+				"number_of_shards" : 1,
+				"number_of_replicas" : 2
+			}
+		},
+	   "mappings" : {
+		   "foobar": {
+			   "properties": {
+				   "foo": {"store":true,"type":"string"}
+			   }
+		   }
+		}
+	}')
+	if [ '{"acknowledged":true}' != "${CURLRESULT}" ]; then
+		echo create error
+		echo ${CURLRESULT}
+		exit 1
+	fi
+	sleep 5
+	status
+	if [ "green" != "${STATUS}" ]; then
+		echo status error 1
+		echo $STATUS
+		exit 1
+	fi
+}
+
+function insertdoc {
+	echo insert doc
+	CURLRESULT=$(curl -s -XPUT "http://localhost:${PORT}/foobar/foobar/1" -d '{"foo": "foo1"}')
+	if [ "true" != "$(echo -n ${CURLRESULT}|sed 's/^.*created\":\(false\|true\).*$/\1/')" ]; then
+		echo insert error
+		echo ${CURLRESULT}
+		exit 1
+	fi
+}
+
+function locatetar {
+	echo locate tarball
+	TAR="$(ls -1|grep -E '^elasticsearch.*(\.tar\.gz|\.tgz)$'|sort -r|head -n 1)"
+	if [ ! -f "${TAR}" ]; then
+		echo elasticsearch tarball not found
+		exit 1
+	fi
+	echo using ${TAR}
+}
+
+function port {
+	echo get port
+	PORT="$(netstat -ltn|grep ':920[0-9]\s'|sed 's/.*\(920[0-9]\).*/\1/'|sort|head -n 1)"
+}
+
+function query {
+	echo query
+	CURLRESULT=$(curl -s -XGET "http://localhost:${PORT}/foobar/_search?q=_id:1")
+	if [ "foo1" != "$(echo -n ${CURLRESULT}|sed 's/^.*foo\":\s*\"\(foo1\).*$/\1/')" ]; then
+		echo query error 1
+		echo ${CURLRESULT}
+		exit 1
+	fi
+}
+
+function removeall {
+	echo remove previous instances
+	find . -maxdepth 1 -type d|grep -v -E '^\.(|/\..*)$'|xargs rm -rf
+}
+
+function start {
+	./${1}/bin/elasticsearch 2>&1 > /dev/null &
+	PIDS[${1}]=${!}
+	sleep 2
+}
+
+function status {
+	STATUS=$(curl -s -XGET "http://localhost:${PORT}/_cat/indices?v"|grep foobar|cut -d\  -f 1)
+}
+
+function stop {
+	kill ${PIDS[${1}]}
+	sleep 2
+	kill -9 ${PIDS[${1}]} > /dev/null 2>&1
+}
+
+function stopall {
+	echo stop running elasticsearch instances
+	FOUND="0"
+	for PID in $(ps -o pid,cmd|sed 's/^\s*//'|grep java|grep elasticsearch|cut -d\  -f 1);
+	do
+		FOUND="1"
+		kill ${PID}
+	done
+	if [ "0" != "${FOUND}" ]; then
+		sleep 2
+		ps -o pid,cmd|sed 's/^\s*//'|grep java|grep elasticsearch|cut -d\  -f 1|xargs -r kill -9
+		sleep 2
+	fi
+}

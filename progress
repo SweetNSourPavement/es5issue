@@ -1,0 +1,117 @@
+#!/bin/bash
+. common
+
+stopall
+
+locatetar
+
+removeall
+
+echo create instances
+createfirst
+mv 1/config/elasticsearch.yml 1/config/elasticsearch.yml.bak
+sed "s/^.*discovery.zen.minimum_master_nodes.*$/discovery.zen.minimum_master_nodes: 2/" 1/config/elasticsearch.yml.bak > 1/config/elasticsearch.yml
+cp -R 1 4
+echo "node.data: false" >> 1/config/elasticsearch.yml
+echo "node.master: true" >> 1/config/elasticsearch.yml
+echo "node.data: true" >> 4/config/elasticsearch.yml
+echo "node.master: false" >> 4/config/elasticsearch.yml
+cp -R 1 2
+cp -R 1 3
+cp -R 4 5
+cp -R 4 6
+
+echo start all instances
+start 1
+start 2
+start 3
+start 4
+start 5
+start 6
+
+sleep 20
+
+port
+
+createindex
+
+if [ "red" != "$1" ]; then
+	TEMP=${PIDS[4]}
+	PIDS[4]=${PIDS[6]}
+	PIDS[6]=${TEMP}
+fi
+
+echo stop one data node
+stop 4
+sleep 5
+port
+status
+if [ "yellow" != "${STATUS}" ]; then
+	echo status error 2
+	echo $STATUS
+	exit 1
+fi
+
+insertdoc
+sleep 2
+query
+
+echo stop data nodes
+stop 5
+stop 6
+sleep 5
+
+echo restart data nodes
+start 4
+sleep 5
+start 5
+sleep 10
+port
+status
+echo ${STATUS}
+while [ "red" == "${STATUS}" ];
+do
+	sleep 10
+	status
+	echo ${STATUS}
+done
+
+query
+
+if [ "green" == "$1" ]; then
+	start 6
+	sleep 10
+	port
+	status
+	echo ${STATUS}
+	while [ "green" != "${STATUS}" ];
+	do
+		sleep 10
+		status
+		echo ${STATUS}
+	done
+	query
+fi
+
+stopall
+
+for NODE in $(seq 4 6);
+do
+	echo node $NODE
+	rm -f ${NODE}/config/elasticsearch.yml
+	cp 1/config/elasticsearch.yml.bak ${NODE}/config/elasticsearch.yml
+	start ${NODE}
+	sleep 10
+	port
+	status
+	echo ${STATUS}
+	if [ "red" == "${STATUS}" ]; then
+		echo status error 3
+		exit 1
+	fi
+	query
+	stop ${NODE}
+	sleep 5
+done
+
+stopall
