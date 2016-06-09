@@ -39,7 +39,7 @@ To sum up:
   there's no data loss
 * earlier replica healing may be desirable
 
-To run the scripts:
+To run the scripts (on *nix):
 
 * clone this repository
   * `git clone https://github.com/SweetNSourPavement/es5issue`
