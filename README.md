@@ -1,4 +1,7 @@
-These scripts demonstrate some issues with Elasticsearch 5.0.0 alpha3.
+These scripts demonstrate some issues with Elasticsearch 5.0.0 alpha4.
+
+Relevant issues are elastic/elasticsearch#18799 and
+elastic/elasticsearch#18919.
 
 All the tests create a local cluster, creates an index with 2 replicas,
 shuts down one data node, inserts a document, and tries to restart the
@@ -44,7 +47,7 @@ To run the scripts (on *nix):
 * clone this repository
   * `git clone https://github.com/SweetNSourPavement/es5issue`
 * copy one of the alpha tarball into the root of the repo 
-  *  `wget https://download.elastic.co/elasticsearch/release/org/elasticsearch/distribution/tar/elasticsearch/5.0.0-alpha3/elasticsearch-5.0.0-alpha3.tar.gz`
+  *  `wget https://download.elastic.co/elasticsearch/release/org/elasticsearch/distribution/tar/elasticsearch/5.0.0-alpha4/elasticsearch-5.0.0-alpha4.tar.gz`
 * run one of the following commands
   * ./loss
     * completely loses the document, overwrites correct replicas
