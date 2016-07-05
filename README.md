@@ -1,7 +1,9 @@
 These scripts demonstrate some issues with Elasticsearch 5.0.0 alpha4.
 
-Relevant issues are elastic/elasticsearch#18799 and
-elastic/elasticsearch#18919.
+Relevant issues are
+[18799](http://github.com/elastic/elasticsearch/issues/18799)
+and
+[18919](http://github.com/elastic/elasticsearch/issues/18919).
 
 All the tests create a local cluster, creates an index with 2 replicas,
 shuts down one data node, inserts a document, and tries to restart the
